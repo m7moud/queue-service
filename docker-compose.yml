@@ -3,3 +3,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.queue
+    healthcheck:
+      test: ['CMD', 'nc', '-z', 'localhost', '8080']
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+  copy:
+    build:
+      context: .
+      dockerfile: Dockerfile.copy
+    depends_on:
+      queue:
+        condition: service_healthy
+    environment:
+      - QUEUE_ADDR=queue:8080

@@ -16,13 +16,14 @@ import (
 )
 
 func main() {
-	addr := ":8080"
+	queueAddr := ":8080"
+	queueAddr = os.Getenv("QUEUE_ADDR")
 
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.Info("Starting reader/writer system...")
 
-	queueService, err := queue.NewQueueClient(addr)
+	queueService, err := queue.NewQueueClient(queueAddr)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to connect to queue service")
 	}
