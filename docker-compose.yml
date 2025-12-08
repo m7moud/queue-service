@@ -1,0 +1,5 @@
+services:
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile.queue
