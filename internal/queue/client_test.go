@@ -37,7 +37,7 @@ var _ = Describe("QueueClient", func() {
 		}()
 
 		// Wait a bit for the server to start
-		time.Sleep(time.Second)
+		time.Sleep(100 * time.Millisecond)
 
 		// Create a QueueClient instance
 		client, err = queue.NewQueueClient(addr)

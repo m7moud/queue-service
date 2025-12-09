@@ -4,29 +4,25 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/m7moud/queue-service/internal/config"
-	"github.com/m7moud/queue-service/internal/queue"
 	"github.com/m7moud/queue-service/internal/worker"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	queueAddr := ":8080"
-	queueAddr = os.Getenv("QUEUE_ADDR")
+	if os.Getenv("QUEUE_ADDR") != "" {
+		queueAddr = os.Getenv("QUEUE_ADDR")
+	}
 
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.Info("Starting reader/writer system...")
-
-	queueService, err := queue.NewQueueClient(queueAddr)
-	if err != nil {
-		logger.WithError(err).Fatal("Failed to connect to queue service")
-	}
 
 	// Load configuration
 	cfg, err := config.LoadFromEnv()
@@ -35,13 +31,13 @@ func main() {
 	}
 
 	// Create workers
-	reader, err := worker.NewFileReaderWorker(queueService, cfg.ReaderConfig)
+	reader, err := worker.NewFileReaderWorker(queueAddr, cfg.ReaderConfig)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to create reader worker")
 	}
 	defer reader.Close()
 
-	writer, err := worker.NewFileWriterWorker(queueService, cfg.WriterConfig)
+	writer, err := worker.NewFileWriterWorker(queueAddr, cfg.WriterConfig)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to create writer worker")
 	}
@@ -54,38 +50,41 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Start workers
-	var wg sync.WaitGroup
-	errChan := make(chan error, 2)
+	g, ctx := errgroup.WithContext(ctx)
 
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		if err := reader.Start(ctx); err != nil && err != context.Canceled {
-			errChan <- errors.Wrap(err, "reader worker error")
+	g.Go(func() error {
+		err := reader.Start(ctx)
+		if err != nil && err != context.Canceled {
+			return errors.Wrap(err, "reader worker error")
 		}
-	}()
 
-	go func() {
-		defer wg.Done()
-		if err := writer.Start(ctx); err != nil && err != context.Canceled {
-			errChan <- errors.Wrap(err, "writer worker error")
+		return nil
+	})
+
+	g.Go(func() error {
+		err := writer.Start(ctx)
+		if err != nil && err != context.Canceled {
+			return errors.Wrap(err, "writer worker error")
 		}
-	}()
+
+		return nil
+	})
 
 	// Wait for signal or error
 	select {
 	case sig := <-sigChan:
 		logger.WithField("signal", sig).Info("Received signal, shutting down...")
 		cancel()
-	case err := <-errChan:
-		logger.WithError(err).Error("Worker failed, shutting down...")
-		cancel()
+	case <-ctx.Done():
+		logger.Info("context cancelled, shutting down workers...")
 	}
 
-	// Wait for graceful shutdown
-	wg.Wait()
+	if err := g.Wait(); err != nil {
+		logger.WithError(err).Error("Worker failed, shutting down...")
+		cancel()
+	} else {
+		logger.Info("All workers completed successfully.")
+	}
 
-	logger.Info("System shutdown completed")
+	logger.Info("System shutting down")
 }

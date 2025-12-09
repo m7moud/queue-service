@@ -35,10 +35,3 @@ func (mq *MessageQueue) Dequeue() (string, bool) {
 	mq.messages = mq.messages[1:]
 	return msg, true
 }
-
-func (mq *MessageQueue) Close() error {
-	mq.mu.Lock()
-	defer mq.mu.Unlock()
-
-	return nil
-}

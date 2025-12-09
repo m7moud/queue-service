@@ -77,7 +77,7 @@ var _ = Describe("FileReaderWorker", func() {
 			}()
 
 			// Give it a bit of time to process the file
-			time.Sleep(2 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 
 			// Check if the worker has processed the expected number of messages
 			stats := workerInstance.GetStats()
@@ -95,7 +95,7 @@ var _ = Describe("FileReaderWorker", func() {
 			}()
 
 			// Sleep for a while and cancel the context to simulate worker stop
-			time.Sleep(1 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 			cancel()
 
 			// Verify that the worker was stopped gracefully
@@ -112,7 +112,7 @@ var _ = Describe("FileReaderWorker", func() {
 			}()
 
 			// Sleep while the worker processes the file
-			time.Sleep(2 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 
 			// Check if the stats show the correct processed count
 			stats := workerInstance.GetStats()

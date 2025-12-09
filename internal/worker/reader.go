@@ -30,9 +30,14 @@ type FileReaderWorker struct {
 }
 
 // NewFileReaderWorker creates a new file reader worker
-func NewFileReaderWorker(q queue.QueueService, config FileReaderConfig) (*FileReaderWorker, error) {
+func NewFileReaderWorker(addr string, config FileReaderConfig) (*FileReaderWorker, error) {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
+
+	q, err := queue.NewQueueClient(addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to queue service: %w", err)
+	}
 
 	return &FileReaderWorker{
 		config:  config,

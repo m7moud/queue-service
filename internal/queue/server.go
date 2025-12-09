@@ -6,6 +6,8 @@ import (
 	"io"
 	"log"
 	"net"
+
+	"github.com/sirupsen/logrus"
 )
 
 type QueueServer struct {
@@ -27,7 +29,11 @@ func (qs *QueueServer) Start() error {
 	}
 	defer ln.Close()
 
-	log.Printf("Queue service listening on %s", qs.addr)
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
+	logger.WithFields(logrus.Fields{
+		"address": qs.addr,
+	}).Info("Queue service listening")
 
 	for {
 		conn, err := ln.Accept()
@@ -35,6 +41,7 @@ func (qs *QueueServer) Start() error {
 			log.Printf("Accept error: %v", err)
 			continue
 		}
+
 		go qs.handleConnection(conn)
 	}
 }
@@ -58,31 +65,37 @@ func (qs *QueueServer) handleConnection(conn net.Conn) {
 		// Process command
 		switch cmd[:len(cmd)-1] { // Remove newline
 		case "PUSH":
-			// Read message
-			msg, err := reader.ReadString('\n')
-			if err != nil {
-				log.Printf("Failed to read message: %v", err)
-				writer.WriteString("ERROR\n")
-				writer.Flush()
-				continue
-			}
-
-			qs.queue.Enqueue(msg[:len(msg)-1])
-			writer.WriteString("OK\n")
-			writer.Flush()
-
+			qs.handlePush(reader, writer)
 		case "POP":
-			msg, ok := qs.queue.Dequeue()
-			if !ok {
-				writer.WriteString("EMPTY\n")
-			} else {
-				writer.WriteString(msg + "\n")
-			}
-			writer.Flush()
-
+			qs.handlePop(writer)
 		default:
 			writer.WriteString("UNKNOWN_COMMAND\n")
 			writer.Flush()
 		}
 	}
+}
+
+func (qs *QueueServer) handlePush(reader *bufio.Reader, writer *bufio.Writer) {
+	// Read message
+	msg, err := reader.ReadString('\n')
+	if err != nil {
+		log.Printf("Failed to read message: %v", err)
+		writer.WriteString("ERROR\n")
+		writer.Flush()
+		return
+	}
+
+	qs.queue.Enqueue(msg[:len(msg)-1])
+	writer.WriteString("OK\n")
+	writer.Flush()
+}
+
+func (qs *QueueServer) handlePop(writer *bufio.Writer) {
+	msg, ok := qs.queue.Dequeue()
+	if !ok {
+		writer.WriteString("EMPTY\n")
+	} else {
+		writer.WriteString(msg + "\n")
+	}
+	writer.Flush()
 }

@@ -20,3 +20,5 @@ A Go-based messaging system that uses a TCP queue service to transfer data betwe
 
 - The files are currently configured with an environment variable; this could be implemented more effectively as an input argument.
 - The queue address and assigned port are currently hard-coded and can also be configured.
+- Currently, there is no EOF detection implemented.
+- Beyond scaling for thousands of files or very large files, considerations regarding I/O, network error recovery and retries are also necessary.

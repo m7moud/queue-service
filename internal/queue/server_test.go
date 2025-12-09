@@ -38,7 +38,7 @@ var _ = Describe("QueueServer", func() {
 		}()
 
 		// Wait a bit for the server to start
-		time.Sleep(time.Second)
+		time.Sleep(100 * time.Millisecond)
 
 		// Establish a new connection to the server
 		conn, err = net.Dial("tcp", addr)

@@ -31,7 +31,7 @@ type FileWriterWorker struct {
 }
 
 // NewFileWriterWorker creates a new file writer worker
-func NewFileWriterWorker(q queue.QueueService, config FileWriterConfig) (*FileWriterWorker, error) {
+func NewFileWriterWorker(addr string, config FileWriterConfig) (*FileWriterWorker, error) {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
 
@@ -46,6 +46,11 @@ func NewFileWriterWorker(q queue.QueueService, config FileWriterConfig) (*FileWr
 	file, err := os.OpenFile(config.OutputFile, flags, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open output file: %w", err)
+	}
+
+	q, err := queue.NewQueueClient(addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to queue service: %w", err)
 	}
 
 	return &FileWriterWorker{
@@ -107,6 +112,10 @@ func (w *FileWriterWorker) flushBatch(batch []*queue.Message) error {
 	}
 
 	for _, msg := range batch {
+		if msg == nil {
+			continue
+		}
+
 		line := msg.Content + "\n"
 		if _, err := w.file.WriteString(line); err != nil {
 			return fmt.Errorf("failed to write to file: %w", err)

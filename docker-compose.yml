@@ -17,5 +17,8 @@ services:
     depends_on:
       queue:
         condition: service_healthy
+    volumes:
+      - ./input.txt:/root/input.txt
+      - ./output.txt:/root/output.txt
     environment:
       - QUEUE_ADDR=queue:8080
